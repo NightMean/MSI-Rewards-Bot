@@ -3,6 +3,8 @@ services:
     image: nightmean/msi-reward-bot:latest
     container_name: msi_reward_bot
     restart: unless-stopped
+    # Enable init system (tini) inside container to properly handle signal forwarding and reap zombie processes
+    init: true
     volumes:
       - ./data:/app/data
       - ./screenshots:/app/screenshots

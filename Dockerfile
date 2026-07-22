@@ -11,9 +11,11 @@ RUN apk add --no-cache \
     ttf-freefont \
     tzdata
 
-# Tell Puppeteer to skip installing Chrome. We'll be using the installed package.
+# Tell Puppeteer to skip downloading Chromium and use system-installed package.
+# Set DISABLE_CRASHPAD=1 to prevent crashpad helper process initialization errors under container seccomp profiles.
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
+    DISABLE_CRASHPAD=1
 
 WORKDIR /app
 

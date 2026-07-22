@@ -64,10 +64,14 @@ async function runBot() {
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
             headless: 'new',
             args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu'
+                '--no-sandbox',               // Disables root sandbox requirement for unprivileged Linux Docker containers
+                '--disable-setuid-sandbox',     // Disables setuid sandbox in container environments
+                '--disable-dev-shm-usage',     // Uses /tmp instead of /dev/shm to avoid container shared memory allocation limits
+                '--disable-gpu',               // Disables GPU hardware acceleration inside headless containers
+                '--disable-crash-reporter',    // Disables Crashpad worker process to fix sched_getscheduler (ENOSYS) error in Docker seccomp
+                '--disable-breakpad',         // Disables Breakpad crash monitoring service
+                '--no-zygote',                // Prevents spawning zygote child processes that attempt scheduler queries
+                '--disable-software-rasterizer'// Prevents fallback software rasterizer rendering crashes in headless environments
             ]
         });
         const page = await browser.newPage();

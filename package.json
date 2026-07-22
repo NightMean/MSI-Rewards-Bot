@@ -1,6 +1,6 @@
 {
     "name": "msi-reward-bot",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "Daily login bot for MSI Rewards",
     "main": "src/index.js",
     "scripts": {
