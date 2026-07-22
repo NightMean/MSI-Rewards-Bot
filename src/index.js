@@ -134,14 +134,13 @@ async function runBot() {
 
         if (!pointsText) {
             log('ERROR: Could not find points element (.kv__memberbox--info li:nth-child(2)). User might not be logged in.');
-            await sendDiscordNotification('error', { message: "Could not find points element. Check if cookies are valid or site layout changed." });
 
             if (SAVE_SCREENSHOTS) {
                 const html = await page.content();
                 fs.writeFileSync(path.join(SCREENSHOT_DIR, 'debug_error.html'), html);
                 await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'debug_error.png') });
             }
-            return;
+            throw new Error("Could not find points element. Check if cookies are valid or site layout changed.");
         }
 
         // Parse number from strings like "My Points: 1,200 Points"
@@ -149,8 +148,7 @@ async function runBot() {
         const match = pointsText.match(/([\d,.]+)/);
 
         if (!match) {
-            log(`ERROR: Could not parse points from text: "${pointsText}"`);
-            return;
+            throw new Error(`Could not parse points from text: "${pointsText}"`);
         }
 
         // 2. Remove non-digits from that specific sequence (to handle 1,200 -> 1200)
@@ -158,8 +156,7 @@ async function runBot() {
         const currentPoints = parseInt(cleanPoints, 10);
 
         if (isNaN(currentPoints)) {
-            log(`ERROR: Could not parse points from text: "${pointsText}"`);
-            return;
+            throw new Error(`Could not parse points from text: "${pointsText}"`);
         }
         log(`Current Points: ${currentPoints}`);
 
@@ -174,12 +171,7 @@ async function runBot() {
         // Check Milestones
         // We notify if we crossed a milestone boundary since the last run
         // i.e., lastPoints < Milestone <= currentPoints
-        // OR if it's the first run (lastPoints=0) and we are above a milestone? 
-        // User said "upon reaching". If I start at 393 and want 600, I shouldn't notify for 100/200/300.
-        // So I only notify if lastPoints < M <= currentPoints.
-
         for (const milestone of MILESTONES) {
-            // Notify if we crossed the milestone (or if it's the first run and we met it)
             if (lastPoints < milestone && currentPoints >= milestone) {
                 await sendDiscordNotification('milestone', { points: currentPoints, milestone: milestone });
             }
@@ -194,10 +186,9 @@ async function runBot() {
 
     } catch (error) {
         log(`ERROR: ${error.message}`);
-        await sendDiscordNotification('error', { message: error.message });
         if (browser) await browser.close(); // Safety close
 
-        // Check for Fatal Errors (Configuration issues)
+        // Check for Fatal Errors (Configuration issues like missing/invalid cookies)
         const isFatal = error.message.includes('cookies.json') || error.message.includes('Invalid JSON');
         return { success: false, error: error.message, fatal: isFatal };
     } finally {
@@ -217,6 +208,8 @@ async function runWithRetry() {
 
         if (result.fatal) {
             log(`FATAL error encountered: "${result.error}". Aborting retries.`);
+            // Send Discord notification immediately for fatal configuration errors
+            await sendDiscordNotification('error', { message: `FATAL ERROR: ${result.error}` });
             return result; // Propagate fatal error immediately
         }
 
@@ -225,6 +218,8 @@ async function runWithRetry() {
             await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
         } else {
             log(`All ${MAX_RETRIES} attempts failed. Last error: "${result.error}"`);
+            // Only send Discord notification when ALL retries are exhausted to avoid false alarm alerts
+            await sendDiscordNotification('error', { message: `All ${MAX_RETRIES} attempts failed. Last error: ${result.error}` });
             return result;
         }
     }
